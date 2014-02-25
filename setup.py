@@ -46,7 +46,7 @@ CLASSIFIERS = [
     'Topic :: System :: Boot',
     'Topic :: System :: Monitoring',
     'Topic :: System :: Systems Administration',
-    ]
+]
 
 version_txt = os.path.join(here, 'supervisor/version.txt')
 supervisor_version = open(version_txt).read().strip()
@@ -76,6 +76,6 @@ dist = setup(
          'supervisorctl = supervisor.supervisorctl:main',
          'echo_supervisord_conf = supervisor.confecho:main',
          'pidproxy = supervisor.pidproxy:main',
-         ],
-      },
-    )
+        ],
+    },
+)
