@@ -249,7 +249,8 @@ class UnixStreamSocketConfig(SocketConfig):
             self._chmod()
         except:
             sock.close()
-            os.unlink(self.path)
+            if os.path.exists(self.path):
+                os.unlink(self.path)
             raise
         return sock
 
