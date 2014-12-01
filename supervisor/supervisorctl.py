@@ -30,6 +30,8 @@ import socket
 import errno
 import threading
 
+import colorama
+
 from supervisor.compat import xmlrpclib
 from supervisor.compat import urlparse
 from supervisor.compat import unicode
@@ -593,19 +595,42 @@ class DefaultControllerPlugin(ControllerPluginBase):
     def help_exit(self):
         self.ctl.output("exit\tExit the supervisor shell.")
 
-    def _show_statuses(self, process_infos):
+    def _show_statuses(self, process_infos, colorize_output=True):
         namespecs, maxlen = [], 30
         for i, info in enumerate(process_infos):
             namespecs.append(make_namespec(info['group'], info['name']))
             if len(namespecs[i]) > maxlen:
                 maxlen = len(namespecs[i])
 
-        template = '%(namespec)-' + str(maxlen+3) + 's%(state)-10s%(desc)s'
+        template = self._get_status_template(colorize_output, maxlen)
+
         for i, info in enumerate(process_infos):
+            state = info['statename']
+
+            if colorize_output:
+                state = self._colorize_state(state)
+
             line = template % {'namespec': namespecs[i],
-                               'state': info['statename'],
+                               'state': state,
                                'desc': info['description']}
             self.ctl.output(line)
+
+    def _get_status_template(self, colorize_output, maxlen):
+        state_col_width = 24 if colorize_output else 10
+        template = ('%(namespec)-' + str(maxlen+3) + 's' +
+                    '%(state)-' + str(state_col_width) +
+                    's%(desc)s')
+        return template
+
+    def _colorize_state(self, statename):
+        colors = {
+            'RUNNING': colorama.Style.BRIGHT + colorama.Fore.GREEN,
+            'STOPPED': colorama.Style.BRIGHT + colorama.Fore.YELLOW,
+            'BACKOFF': colorama.Style.BRIGHT + colorama.Fore.RED,
+            'FATAL': colorama.Style.BRIGHT + colorama.Fore.RED,
+        }
+        color = colors.get(statename, '')
+        return '%s%s%s' % (color, statename, colorama.Fore.RESET)
 
     def do_status(self, arg):
         if not self.ctl.upcheck():
@@ -613,8 +638,19 @@ class DefaultControllerPlugin(ControllerPluginBase):
 
         supervisor = self.ctl.get_supervisor()
         all_infos = supervisor.getAllProcessInfo()
+        options = self.ctl.options
+        colorize_output = options.colorize_status
 
-        names = arg.split()
+        args = arg.split()
+
+        options = [arg for arg in args if arg.startswith('--')]
+        for option in options:
+            if option.startswith('--color'):
+                colorize_output = True
+            elif option.startswith('--no-color'):
+                colorize_output = False
+
+        names = [arg for arg in args if not arg.startswith('--')]
         if not names or "all" in names:
             matching_infos = all_infos
         else:
@@ -639,7 +675,7 @@ class DefaultControllerPlugin(ControllerPluginBase):
                     else:
                         msg = "%s: ERROR (no such process)" % name
                     self.ctl.output(msg)
-        self._show_statuses(matching_infos)
+        self._show_statuses(matching_infos, colorize_output)
 
     def help_status(self):
         self.ctl.output("status <name>\t\tGet status for a single process")
@@ -1280,6 +1316,8 @@ class DefaultControllerPlugin(ControllerPluginBase):
 
 
 def main(args=None, options=None):
+    colorama.init()
+
     if options is None:
         options = ClientOptions()
 
