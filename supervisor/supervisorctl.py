@@ -37,6 +37,8 @@ from supervisor.compat import urlparse
 from supervisor.compat import unicode
 from supervisor.compat import raw_input
 
+from supervisor.datatypes import boolean
+
 from supervisor.medusa import asyncore_25 as asyncore
 
 from supervisor.options import ClientOptions
@@ -639,7 +641,10 @@ class DefaultControllerPlugin(ControllerPluginBase):
         supervisor = self.ctl.get_supervisor()
         all_infos = supervisor.getAllProcessInfo()
         options = self.ctl.options
-        colorize_output = options.colorize_status
+        if options.colorize_status == 'auto':
+            colorize_output = sys.stdout.isatty()
+        else:
+            colorize_output = boolean(options.colorize_status)
 
         args = arg.split()
 
